@@ -1,0 +1,94 @@
+""" Calculating efficiency at varied reduced pressure 4 working fluids. Data 
+    obtained from Refprop 9.1. Cycle: Supercritical Organic Rankine Cycle """
+
+import numpy as np
+import os; os.environ['RPPREFIX'] = r'C:\Program Files\REFPROP\REFPRP64.DLL'
+from ctREFPROP.ctREFPROP import REFPROPFunctionLibrary
+RP = REFPROPFunctionLibrary(os.environ['RPPREFIX'])
+RP.SETPATHdll(os.environ['RPPREFIX'])
+
+""" Function to determine properties """
+
+def val_h(F,T,P):
+    
+    r = RP.SETUPdll(1,F,"HMX.BNC", "DEF")
+    assert (r.ierr == 0)
+    return ((RP.TPFLSHdll(T, P, [1.0])).h)
+
+def val_s(F,T,P):
+    
+    r = RP.SETUPdll(1,F,"HMX.BNC", "DEF")
+    assert (r.ierr == 0)
+    return ((RP.TPFLSHdll(T, P, [1.0])).s)
+
+def val_crit(F):
+    r = RP.SETUPdll(1,F,"HMX.BNC", "DEF")
+    assert (r.ierr == 0)
+    return ((RP.CRITPdll([1.0])).Pc)
+
+def val_hq(F,T,Q):
+    
+    r = RP.SETUPdll(1,F,"HMX.BNC", "DEF")
+    assert (r.ierr == 0)
+    return ((RP.TQFLSHdll(T, Q, [1.0], 1)).h)
+
+def val_vq(F,T,Q):
+    
+    r = RP.SETUPdll(1,F,"HMX.BNC", "DEF")
+    assert (r.ierr == 0)
+    return (1/((RP.TQFLSHdll(T, Q, [1.0], 1)).D))
+
+def val_Pq(F,T,Q):
+    
+    r = RP.SETUPdll(1,F,"HMX.BNC", "DEF")
+    assert (r.ierr == 0)
+    return ((RP.TQFLSHdll(T, Q, [1.0], 1)).P)
+
+def val_hs(F, P, s):
+    
+    r = RP.SETUPdll(1,F,"HMX.BNC", "DEF")
+    assert (r.ierr == 0)
+    return ((RP.PSFLSHdll(P, s, [1.0])).h)
+
+""" Function to determine efficiency """
+
+def eff_cycle(F, T5, delta, Pr):
+    
+    T3 = T5 - delta
+    T1 = T_7 + delta
+    P_C = val_crit(F)
+    P_3 = P_2 = P_C * Pr
+    P_4 = P_1 = val_Pq(F, T1, x)
+    v_1 = val_vq(F, T1, x)
+    h_1 = val_hq(F, T1, x)
+    h_2 = h_1 + ((v_1*(P_2-P_1))/eta_P)
+    h_3 = val_h(F, T3, P_3)
+    s_4s = val_s(F, T3, P_3)
+    h_4s = val_hs(F, P_4, s_4s)
+    h_4 = h_3 + eta_T*(h_4s-h_3)
+    m_c = W_T/(h_3-h_4)
+    W_P = m_c * (h_2-h_1)
+    Q_I = m_c * (h_3-h_2)
+    eta_I = ((W_T-W_P)/Q_I)*100
+    return (eta_I)
+
+T_5 = 500   # Temperature of heat source
+T_7 = 300   # Temperature of heat sink
+deltaT_PP = 10  # Heat exchanger entry temperature difference
+T_1 = T_7+deltaT_PP
+T_3 = T_5-deltaT_PP
+eta_T = 0.85    # Isentropic efficiency of turbine
+eta_P = 0.80    # Isentropic efficiency of pump
+W_T = 250   # Work output from turbine
+x=0     # Quality of vapor
+Fluid = ["DME.FLD","R1234YF.FLD","DEE.FLD","ISOBUTAN.FLD"]  # Working fluids
+P_R = np.linspace(1,4,100)
+
+""" Computing the results for cycle efficiency """
+
+eta = np.zeros(shape=((len(Fluid)),(len(P_R))))
+for i in range(len(Fluid)):
+    for j in range(len(P_R)):
+        eta[i][j] = eff_cycle(Fluid[i], T_5, deltaT_PP, P_R[j])
+        # Efficiency matrix for given working fluid and reduced pressure
+
